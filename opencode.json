@@ -1,0 +1,9 @@
+{
+  "permission": {
+    "skill": {
+      "*": "allow",
+      "code-review": "allow"
+    }
+  },
+  "$schema": "https://opencode.ai/config.json"
+}

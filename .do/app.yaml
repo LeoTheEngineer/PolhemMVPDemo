@@ -1,0 +1,59 @@
+name: polhem-mvp-demo
+region: fra
+features:
+  - buildpack-stack=ubuntu-22
+
+services:
+  - name: web
+    github:
+      repo: your-username/polhem-mvp-demo
+      branch: main
+      deploy_on_push: true
+    build_command: npm ci && npm run build
+    run_command: npm start
+    environment_slug: node-js
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    http_port: 3000
+    routes:
+      - path: /
+    health_check:
+      http_path: /api/health
+      initial_delay_seconds: 10
+      period_seconds: 30
+      timeout_seconds: 5
+      success_threshold: 1
+      failure_threshold: 3
+    envs:
+      # Supabase
+      - key: SUPABASE_SECRET
+        scope: RUN_AND_BUILD_TIME
+        type: SECRET
+      
+      # Clerk Authentication
+      - key: NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+        scope: RUN_AND_BUILD_TIME
+        type: GENERAL
+      - key: CLERK_SECRET_KEY
+        scope: RUN_AND_BUILD_TIME
+        type: SECRET
+      - key: NEXT_PUBLIC_CLERK_SIGN_IN_URL
+        scope: RUN_AND_BUILD_TIME
+        value: /sign-in
+      - key: NEXT_PUBLIC_CLERK_SIGN_UP_URL
+        scope: RUN_AND_BUILD_TIME
+        value: /sign-up
+      - key: NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL
+        scope: RUN_AND_BUILD_TIME
+        value: /dashboard
+      - key: NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL
+        scope: RUN_AND_BUILD_TIME
+        value: /dashboard
+      
+      # Application
+      - key: NEXT_PUBLIC_APP_URL
+        scope: RUN_AND_BUILD_TIME
+        value: ${APP_URL}
+      - key: NODE_ENV
+        scope: RUN_AND_BUILD_TIME
+        value: production
