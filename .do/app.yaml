@@ -6,7 +6,7 @@ features:
 services:
   - name: web
     github:
-      repo: your-username/polhem-mvp-demo
+      repo: LeoTheEngineer/PolhemMVPDemo
       branch: main
       deploy_on_push: true
     build_command: npm ci && npm run build
@@ -26,7 +26,10 @@ services:
       failure_threshold: 3
     envs:
       # Supabase
-      - key: SUPABASE_SECRET
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        scope: RUN_AND_BUILD_TIME
+        type: GENERAL
+      - key: SUPABASE_SERVICE_ROLE_KEY
         scope: RUN_AND_BUILD_TIME
         type: SECRET
       
