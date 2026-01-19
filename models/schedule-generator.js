@@ -173,15 +173,15 @@ function adjustToWorkHours(time) {
 }
 
 /**
- * Create multiple production blocks for orders that span multiple work days
+ * Create production blocks for an order.
  * 
- * Example: 48-hour order with 16 work hours/day becomes:
- * - Block 1: Day 1, 06:00-22:00 (16 hours)
- * - Block 2: Day 2, 06:00-22:00 (16 hours)
- * - Block 3: Day 3, 06:00-22:00 (16 hours)
+ * SIMPLIFIED FOR DEMO: Creates ONE block per order, even if production spans
+ * multiple days. This keeps the UI clean and avoids multiple overlapping blocks.
  * 
- * The batch_size is kept on the FIRST block only (the total order quantity).
- * Subsequent blocks have batch_size = 0 to indicate they're continuations.
+ * The block's end_time may extend past work hours, but the visualization
+ * handles this by clamping to work hour boundaries.
+ * 
+ * For a real production system, you would split into multiple blocks per day.
  */
 function createMultiDayBlocks({
   totalMinutes,
@@ -195,61 +195,26 @@ function createMultiDayBlocks({
   product,
   machine,
 }) {
-  const blocks = [];
-  const workMinutesPerDay = workHoursPerDay * 60;
-  let remainingMinutes = totalMinutes;
-  let currentStart = new Date(startTime);
-  let isFirstBlock = true;
+  // Ensure we start within work hours
+  const currentStart = adjustToWorkHours(new Date(startTime));
   
-  while (remainingMinutes > 0) {
-    // Ensure we start within work hours
-    currentStart = adjustToWorkHours(currentStart);
-    
-    // Calculate how many minutes until end of work day
-    const workDayEnd = new Date(currentStart);
-    workDayEnd.setHours(WORK_END_HOUR, 0, 0, 0);
-    const minutesUntilDayEnd = (workDayEnd - currentStart) / (1000 * 60);
-    
-    // Determine this block's duration (min of remaining time and day capacity)
-    const blockMinutes = Math.min(remainingMinutes, minutesUntilDayEnd);
-    
-    // Calculate end time for this block
-    const blockEnd = new Date(currentStart.getTime() + blockMinutes * 60 * 1000);
-    
-    // Create the block
-    const block = {
-      machine_id: machineId,
-      product_id: productId,
-      customer_id: customerId,
-      // Only the first block carries the full batch size
-      // Subsequent blocks are continuations with batch_size = 0
-      batch_size: isFirstBlock ? batchSize : 0,
-      start_time: currentStart.toISOString(),
-      end_time: blockEnd.toISOString(),
-      // Only first block has setup time
-      setup_time_minutes: isFirstBlock ? setupMinutes : 0,
-      estimated_cost: isFirstBlock 
-        ? calculateEstimatedCost(batchSize, product, machine)
-        : 0,
-    };
-    
-    blocks.push(block);
-    
-    // Update for next iteration
-    remainingMinutes -= blockMinutes;
-    isFirstBlock = false;
-    
-    // Next block starts at end of this one (will be adjusted to next work day if needed)
-    currentStart = new Date(blockEnd);
-    
-    // If we ended at work day end, move to next day's work start
-    if (currentStart.getHours() >= WORK_END_HOUR) {
-      currentStart.setDate(currentStart.getDate() + 1);
-      currentStart.setHours(WORK_START_HOUR, 0, 0, 0);
-    }
-  }
+  // Calculate end time (may span multiple days - that's OK for visualization)
+  // The end time represents when this production run completes
+  const blockEnd = new Date(currentStart.getTime() + totalMinutes * 60 * 1000);
   
-  return blocks;
+  // Create a single block for this order
+  const block = {
+    machine_id: machineId,
+    product_id: productId,
+    customer_id: customerId,
+    batch_size: batchSize,
+    start_time: currentStart.toISOString(),
+    end_time: blockEnd.toISOString(),
+    setup_time_minutes: setupMinutes,
+    estimated_cost: calculateEstimatedCost(batchSize, product, machine),
+  };
+  
+  return [block];
 }
 
 /**

@@ -101,22 +101,16 @@ export default function ProductionBlock({
         (isDragging || isDraggingState) && 'opacity-50 z-50 cursor-grabbing'
       )}
       style={{
-        ...style,
         ...dragStyle,
-        height: '42px',
-        top: '3px',
-        minWidth: '60px',
+        ...style, // style comes after dragStyle so height/top/left/width from parent take precedence
       }}
       role="button"
       tabIndex={0}
-      aria-label={`Production block: ${block.customer?.name || 'Customer'}, ${block.batch_size > 0 ? formatNumber(block.batch_size) + ' units' : 'continuation'}`}
+      aria-label={`Production block: ${block.customer?.name || 'Customer'}, ${formatNumber(block.batch_size)} units`}
     >
-      <div className="px-2 py-1 truncate h-full flex flex-col justify-center pointer-events-none">
-        <span className="text-xs font-semibold text-white truncate">
-          {block.customer?.name || 'Customer'}
-        </span>
-        <span className="text-[10px] text-white/70">
-          {block.batch_size > 0 ? `${formatNumber(block.batch_size)} units` : '(cont.)'}
+      <div className="px-1.5 truncate h-full flex items-center pointer-events-none">
+        <span className="text-[10px] font-medium text-white truncate">
+          {block.customer?.name || 'Customer'} - {formatNumber(block.batch_size)}
         </span>
       </div>
     </div>

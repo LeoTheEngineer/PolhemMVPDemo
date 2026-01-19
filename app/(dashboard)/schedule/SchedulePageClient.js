@@ -1,54 +1,52 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { RefreshCw, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Button from '@/components/shared/Button';
 import ConfirmDialog from '@/components/shared/ConfirmDialog';
-import DateRangePicker from '@/components/schedule/DateRangePicker';
 import ScheduleGantt from '@/components/schedule/ScheduleGantt';
 import BlockEditModal from '@/components/schedule/BlockEditModal';
 import HourlyModal from '@/components/schedule/HourlyModal';
 import MachineDetailsModal from '@/components/schedule/MachineDetailsModal';
 import { formatDate, addDays } from '@/lib/utils';
 
-// Calculate initial dates based on blocks data, or use a fixed date range
-function getInitialDateRange(blocks) {
-  if (blocks && blocks.length > 0) {
-    // Find the earliest block start date
-    const dates = blocks.map(b => new Date(b.start_time));
-    const minDate = new Date(Math.min(...dates));
-    const startStr = formatDate(minDate);
-    const endStr = formatDate(addDays(minDate, 14));
-    return { start: startStr, end: endStr };
-  }
-  // Fallback: use a fixed date that won't cause hydration issues
-  // This will be updated on client mount
-  return { start: '', end: '' };
-}
-
-export default function SchedulePageClient({ machines, blocks, settings }) {
+export default function SchedulePageClient({ machines, blocks, settings, latestDueDate }) {
   const router = useRouter();
-  
-  // Initialize with dates from blocks data to avoid hydration mismatch
-  const initialRange = getInitialDateRange(blocks);
-  const [startDate, setStartDate] = useState(initialRange.start);
-  const [endDate, setEndDate] = useState(initialRange.end);
   const [mounted, setMounted] = useState(false);
   
-  // Set actual dates after mount to avoid hydration issues
-  useEffect(() => {
+  // Auto-calculate date range:
+  // - Start: Today
+  // - End: Latest due date + 1 day
+  const dateRange = useMemo(() => {
+    // Use a stable reference date for SSR, will be updated on mount
     if (!mounted) {
-      setMounted(true);
-      if (!startDate || !endDate) {
-        const now = new Date();
-        setStartDate(formatDate(now));
-        setEndDate(formatDate(addDays(now, 14)));
-      }
+      return { start: '', end: '' };
     }
-  }, [mounted, startDate, endDate]);
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const startStr = formatDate(today);
+    
+    // End date is latest due date + 1 day
+    let endDate;
+    if (latestDueDate) {
+      endDate = addDays(new Date(latestDueDate), 1);
+    } else {
+      // Fallback: 14 days from today if no orders
+      endDate = addDays(today, 14);
+    }
+    const endStr = formatDate(endDate);
+    
+    return { start: startStr, end: endStr };
+  }, [mounted, latestDueDate]);
+  
+  // Set mounted after first render to trigger date calculation
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   
   // Modal states
   const [editBlock, setEditBlock] = useState(null);
@@ -148,8 +146,6 @@ export default function SchedulePageClient({ machines, blocks, settings }) {
   };
 
   const handleDayClick = (machine, day) => {
-    // Check if block duration is < 16 hours
-    // For simplicity, always open hourly view
     setHourlyView({ machine, date: day });
   };
 
@@ -213,16 +209,6 @@ export default function SchedulePageClient({ machines, blocks, settings }) {
         </div>
       )}
 
-      {/* Date Range Picker */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-        <DateRangePicker
-          startDate={startDate}
-          endDate={endDate}
-          onStartChange={setStartDate}
-          onEndChange={setEndDate}
-        />
-      </div>
-
       {/* Gantt Chart */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
         {blocks.length === 0 ? (
@@ -232,7 +218,7 @@ export default function SchedulePageClient({ machines, blocks, settings }) {
               Generate Schedule
             </Button>
           </div>
-        ) : !startDate || !endDate ? (
+        ) : !dateRange.start || !dateRange.end ? (
           <div className="text-center py-12">
             <p className="text-zinc-400">Loading schedule...</p>
           </div>
@@ -240,8 +226,8 @@ export default function SchedulePageClient({ machines, blocks, settings }) {
           <ScheduleGantt
             machines={machines}
             blocks={blocks}
-            startDate={startDate}
-            endDate={endDate}
+            startDate={dateRange.start}
+            endDate={dateRange.end}
             workHoursPerDay={settings?.work_hours_per_day || 16}
             onBlockClick={setEditBlock}
             onDayClick={handleDayClick}

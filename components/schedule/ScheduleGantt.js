@@ -112,11 +112,12 @@ export default function ScheduleGantt({
           <div className="w-32 flex-shrink-0 px-4 py-2 border-r border-zinc-800">
             <span className="text-xs font-semibold text-zinc-400">MACHINE</span>
           </div>
-          <div className="flex-1 flex">
+          <div className="flex" style={{ width: `${days.length * 180}px` }}>
             {days.map((day) => (
               <div
                 key={day.toISOString()}
-                className="min-w-[120px] flex-1 px-2 py-2 text-center border-r border-zinc-800/50"
+                className="px-2 py-2 text-center border-r border-zinc-800/50"
+                style={{ width: '180px', flexShrink: 0 }}
               >
                 <span className="text-xs text-zinc-400">
                   {day.toLocaleDateString('en-US', { weekday: 'short' })}

@@ -5,12 +5,20 @@ import { cn } from '@/lib/utils';
 import { formatNumber, getWeekNumber } from '@/lib/utils';
 import OrderCard from './OrderCard';
 
+// Reliability threshold - predictions below this are hidden
+const RELIABILITY_THRESHOLD = 0.75;
+
 export default function OrderTimeline({
   orders = [],
   predictedOrders = [],
   onOrderClick,
   onPredictionClick,
 }) {
+  // Filter out unreliable predictions
+  const reliablePredictions = useMemo(() => {
+    return predictedOrders.filter(pred => pred.confidence_score >= RELIABILITY_THRESHOLD);
+  }, [predictedOrders]);
+
   // Group orders by week
   const weeklyData = useMemo(() => {
     const weeks = {};
@@ -33,8 +41,8 @@ export default function OrderTimeline({
       weeks[key].orders.push(order);
     });
 
-    // Process predicted orders
-    predictedOrders.forEach((pred) => {
+    // Process reliable predicted orders only
+    reliablePredictions.forEach((pred) => {
       const weekNum = getWeekNumber(pred.predicted_date);
       const year = new Date(pred.predicted_date).getFullYear();
       const key = `${year}-W${weekNum}`;
@@ -56,7 +64,7 @@ export default function OrderTimeline({
       if (a.year !== b.year) return a.year - b.year;
       return a.week - b.week;
     });
-  }, [orders, predictedOrders]);
+  }, [orders, reliablePredictions]);
 
   if (weeklyData.length === 0) {
     return (
@@ -68,7 +76,7 @@ export default function OrderTimeline({
 
   return (
     <div className="overflow-x-auto pb-4">
-      <div className="flex gap-4 min-w-max">
+      <div className="flex gap-2 min-w-max">
         {weeklyData.map((week) => (
           <WeekColumn
             key={week.key}
@@ -80,23 +88,17 @@ export default function OrderTimeline({
       </div>
 
       {/* Legend */}
-      <div className="flex flex-wrap items-center gap-6 mt-6 pt-4 border-t border-zinc-800">
-        <span className="text-xs text-zinc-500 font-medium uppercase tracking-wide">Order Type:</span>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded bg-green-500/30 border border-green-500/50" />
-          <span className="text-sm text-zinc-400">Real Order</span>
+      <div className="flex flex-wrap items-center gap-4 mt-4 pt-3 border-t border-zinc-800">
+        <span className="text-xs text-zinc-500 font-medium uppercase tracking-wide">Legend:</span>
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 rounded bg-zinc-700/50 border border-zinc-600/50" />
+          <span className="text-xs text-zinc-400">Real Order</span>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded bg-yellow-500/30 border border-yellow-500/50 relative">
-            <span className="absolute inset-0 flex items-center justify-center text-[8px] font-bold text-yellow-400">P</span>
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 rounded bg-zinc-700/50 border border-zinc-600/50 relative">
+            <span className="absolute inset-0 flex items-center justify-center text-[6px] font-bold text-zinc-300">P</span>
           </div>
-          <span className="text-sm text-zinc-400">Predicted</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded bg-red-500/30 border border-red-500/50 relative">
-            <span className="absolute inset-0 flex items-center justify-center text-[8px] font-bold text-red-400">P</span>
-          </div>
-          <span className="text-sm text-zinc-400">Unreliable Prediction</span>
+          <span className="text-xs text-zinc-400">Predicted</span>
         </div>
       </div>
     </div>
@@ -109,15 +111,15 @@ function WeekColumn({ week, onOrderClick, onPredictionClick }) {
     week.predictions.reduce((sum, p) => sum + p.predicted_quantity, 0);
 
   return (
-    <div className="flex flex-col min-w-[140px]">
+    <div className="flex flex-col min-w-[100px]">
       {/* Week header */}
-      <div className="text-center pb-3 border-b border-zinc-800 mb-3">
+      <div className="text-center pb-2 border-b border-zinc-800 mb-2">
         <p className="text-sm font-medium text-white">W{week.week}</p>
         <p className="text-xs text-zinc-500">{week.year}</p>
       </div>
 
       {/* Orders */}
-      <div className="flex-1 space-y-2">
+      <div className="flex-1 space-y-1">
         {week.orders.map((order) => (
           <OrderCard
             key={order.id}
@@ -138,7 +140,7 @@ function WeekColumn({ week, onOrderClick, onPredictionClick }) {
       </div>
 
       {/* Total */}
-      <div className="pt-3 mt-3 border-t border-zinc-800 text-center">
+      <div className="pt-2 mt-2 border-t border-zinc-800 text-center">
         <p className="text-xs text-zinc-500">Total</p>
         <p className="text-sm font-medium text-white">
           {formatNumber(totalOrders)}

@@ -575,43 +575,117 @@ function Card({ title, children, className = '' }) {
 
 ---
 
+## Compact UI Components
+
+For high-density data displays like order timelines and card grids, use compact spacing:
+
+### Compact Spacing Guidelines
+
+| Element | Standard | Compact |
+|---------|----------|---------|
+| Card padding | `p-4` / `p-6` | `p-2` |
+| Card gaps | `gap-4` | `gap-1` or `gap-2` |
+| Week column gaps | `gap-4` | `gap-2` |
+| Week column min-width | `min-w-[140px]` | `min-w-[100px]` |
+| Internal element gaps | `mt-2` | `mt-1` |
+| Text size in cards | `text-lg` | `text-base` |
+| Badge size | default | `size="small"` |
+
+### Order Card (Compact)
+
+```jsx
+function OrderCard({ order, type, onClick }) {
+  const isReal = type === 'real';
+  
+  return (
+    <div
+      onClick={onClick}
+      className="p-2 rounded border cursor-pointer transition-all hover:scale-105 relative
+                 bg-zinc-700/50 border-zinc-600/50 hover:bg-zinc-600/50"
+    >
+      {/* "P" marker for predicted orders */}
+      {!isReal && (
+        <div className="absolute top-1 right-1 w-4 h-4 rounded text-[10px] font-bold 
+                        flex items-center justify-center bg-zinc-500/40 text-zinc-300">
+          P
+        </div>
+      )}
+
+      <p className="text-base font-bold text-white leading-tight">
+        {formatNumber(order.quantity)}
+      </p>
+      
+      {order.status && (
+        <div className="mt-1">
+          <StatusBadge status={order.status} size="small" />
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+### StatusBadge Sizes
+
+```jsx
+{/* Default size */}
+<StatusBadge status="pending" />
+{/* -> px-2 py-1 text-xs */}
+
+{/* Small size (for compact cards) */}
+<StatusBadge status="pending" size="small" />
+{/* -> px-1.5 py-0.5 text-[10px] */}
+```
+
+---
+
 ## Timeline Components
 
 ### Order Timeline (Horizontal)
 
-For the Orders tab timeline visualization:
+For the Orders tab timeline visualization. Uses compact spacing with `gap-2` between week columns and `space-y-1` between order cards:
 
 ```jsx
-<div className="relative">
-  {/* Timeline axis */}
-  <div className="flex items-end gap-1 overflow-x-auto pb-4">
-    {weeks.map((week, index) => (
-      <div key={week} className="flex flex-col items-center min-w-[80px]">
-        {/* Order block */}
-        <div className={`
-          w-16 rounded-t-md transition-all duration-200
-          ${order.type === 'real'
-            ? 'bg-success'
-            : order.isReliable
-              ? 'bg-warning'
-              : 'bg-error/50'
-          }
-        `}
-        style={{ height: `${(order.quantity / maxQuantity) * 200}px` }}
-        >
-          {/* Tooltip on hover */}
-        </div>
-
-        {/* Week label */}
-        <span className="mt-2 text-xs text-text-muted">W{week}</span>
-      </div>
+<div className="overflow-x-auto pb-4">
+  <div className="flex gap-2 min-w-max">
+    {weeklyData.map((week) => (
+      <WeekColumn key={week.key} week={week} />
     ))}
   </div>
-
-  {/* Timeline line */}
-  <div className="absolute bottom-4 left-0 right-0 h-px bg-border" />
 </div>
+
+function WeekColumn({ week }) {
+  return (
+    <div className="flex flex-col min-w-[100px]">
+      {/* Week header */}
+      <div className="text-center pb-2 border-b border-zinc-800 mb-2">
+        <p className="text-sm font-medium text-white">W{week.week}</p>
+        <p className="text-xs text-zinc-500">{week.year}</p>
+      </div>
+
+      {/* Orders - compact spacing */}
+      <div className="flex-1 space-y-1">
+        {week.orders.map((order) => (
+          <OrderCard key={order.id} order={order} type="real" />
+        ))}
+        {week.predictions.map((pred) => (
+          <OrderCard key={pred.id} order={pred} type="predicted" />
+        ))}
+      </div>
+
+      {/* Total */}
+      <div className="pt-2 mt-2 border-t border-zinc-800 text-center">
+        <p className="text-xs text-zinc-500">Total</p>
+        <p className="text-sm font-medium text-white">{formatNumber(total)}</p>
+      </div>
+    </div>
+  );
+}
 ```
+
+### Predicted Order Visibility
+
+Unreliable predictions (confidence < 75%) are hidden from the timeline. Only reliable predictions are shown with a "P" indicator in the top-right corner of the card.
 
 ### Error Band Visualization
 

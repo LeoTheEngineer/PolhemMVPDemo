@@ -25,15 +25,22 @@ const statusVariants = {
 export default function StatusBadge({
   status,
   variant: customVariant,
+  size = 'default',
   children,
   className,
 }) {
   const variant = customVariant || statusVariants[status] || 'default';
+  
+  const sizeClasses = {
+    small: 'px-1.5 py-0.5 text-[10px]',
+    default: 'px-2 py-1 text-xs',
+  };
 
   return (
     <span
       className={cn(
-        'inline-flex items-center px-2 py-1 text-xs font-medium rounded-full border',
+        'inline-flex items-center font-medium rounded-full border',
+        sizeClasses[size] || sizeClasses.default,
         variants[variant],
         className
       )}

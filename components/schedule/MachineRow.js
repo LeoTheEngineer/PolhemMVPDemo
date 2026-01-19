@@ -62,37 +62,98 @@ export default function MachineRow({
         <div className="text-sm font-semibold text-white">{machine.code}</div>
       </div>
 
-      {/* Timeline area */}
-      <div className="flex-1 relative bg-zinc-800/20 min-h-[52px]">
-        {/* Day columns */}
-        <div className="absolute inset-0 flex">
-          {days.map((day, index) => (
-            <div
-              key={day.toISOString()}
-              onClick={() => onDayClick?.(machine, day)}
-              className={cn(
-                'min-w-[120px] flex-1 border-r border-zinc-800/50 hover:bg-zinc-800/30 cursor-pointer',
-                index % 2 === 0 && 'bg-zinc-900/20'
-              )}
-            />
-          ))}
-        </div>
+      {/* Timeline area - width is fixed based on number of days */}
+      {(() => {
+        // Calculate positions for all blocks first
+        const blockPositions = blocks.map(block => ({
+          block,
+          position: calculateBlockPosition(block, days, workHoursPerDay),
+        })).filter(bp => bp.position.display !== 'none');
+        
+        // Sort by left position for consistent stacking
+        blockPositions.sort((a, b) => {
+          const leftA = parseFloat(a.position.left) || 0;
+          const leftB = parseFloat(b.position.left) || 0;
+          return leftA - leftB;
+        });
+        
+        // Assign vertical slots to prevent visual overlap
+        // Track which horizontal ranges are occupied at each vertical level
+        const levels = []; // Array of arrays, each containing occupied ranges [{left, right}]
+        
+        blockPositions.forEach(bp => {
+          const left = parseFloat(bp.position.left) || 0;
+          const width = parseFloat(bp.position.width) || 60;
+          const right = left + width;
+          
+          // Find the first level where this block doesn't overlap
+          let assignedLevel = 0;
+          for (let level = 0; level < levels.length; level++) {
+            const hasOverlap = levels[level].some(range => 
+              left < range.right + BLOCK_GAP_PX && right > range.left - BLOCK_GAP_PX
+            );
+            if (!hasOverlap) {
+              assignedLevel = level;
+              break;
+            }
+            assignedLevel = level + 1;
+          }
+          
+          // Add this block to the assigned level
+          if (!levels[assignedLevel]) {
+            levels[assignedLevel] = [];
+          }
+          levels[assignedLevel].push({ left, right });
+          bp.verticalLevel = assignedLevel;
+        });
+        
+        // Calculate row height based on number of levels
+        const blockHeight = 22; // Height of each block
+        const verticalGap = BLOCK_GAP_PX;
+        const topPadding = 4;
+        const bottomPadding = 4;
+        const numLevels = Math.max(1, levels.length);
+        const rowHeight = topPadding + numLevels * blockHeight + (numLevels - 1) * verticalGap + bottomPadding;
+        
+        return (
+          <div 
+            className="relative bg-zinc-800/20"
+            style={{ 
+              width: `${days.length * DAY_COLUMN_WIDTH_PX}px`,
+              minHeight: `${Math.max(30, rowHeight)}px`,
+            }}
+          >
+            {/* Day columns */}
+            <div className="absolute inset-0 flex">
+              {days.map((day, index) => (
+                <div
+                  key={day.toISOString()}
+                  onClick={() => onDayClick?.(machine, day)}
+                  className={cn(
+                    'border-r border-zinc-800/50 hover:bg-zinc-800/30 cursor-pointer',
+                    index % 2 === 0 && 'bg-zinc-900/20'
+                  )}
+                  style={{ width: `${DAY_COLUMN_WIDTH_PX}px`, flexShrink: 0 }}
+                />
+              ))}
+            </div>
 
-        {/* Blocks */}
-        {blocks.map((block) => {
-          const blockStyle = calculateBlockPosition(block, days, workHoursPerDay);
-          // Skip rendering blocks that are completely outside the visible range
-          if (blockStyle.display === 'none') return null;
-          return (
-            <ProductionBlock
-              key={block.id}
-              block={block}
-              style={blockStyle}
-              onClick={onBlockClick}
-            />
-          );
-        })}
-      </div>
+            {/* Blocks */}
+            {blockPositions.map(({ block, position, verticalLevel }) => (
+              <ProductionBlock
+                key={block.id}
+                block={block}
+                style={{
+                  ...position,
+                  top: `${topPadding + verticalLevel * (blockHeight + verticalGap)}px`,
+                  height: `${blockHeight}px`,
+                }}
+                onClick={onBlockClick}
+              />
+            ))}
+          </div>
+        );
+      })()}
     </div>
   );
 }
@@ -100,6 +161,12 @@ export default function MachineRow({
 // Work hour constants (should match schedule-generator.js)
 const WORK_START_HOUR = 6;   // 06:00
 const WORK_END_HOUR = 22;    // 22:00
+
+// Day column width in pixels - 180px gives more room for blocks
+const DAY_COLUMN_WIDTH_PX = 180;
+
+// Gap between blocks in pixels
+const BLOCK_GAP_PX = 3;
 
 /**
  * Parse an ISO date string and extract date/time components
@@ -129,9 +196,30 @@ function parseBlockTime(isoString) {
 }
 
 /**
- * Calculate block position based on day columns
- * Each day column represents 1/N of the total width (where N = number of days)
- * Within each day, time is mapped from WORK_START_HOUR to WORK_END_HOUR
+ * Find the index of a date in the days array
+ * Returns -1 if not found
+ */
+function findDayIndex(days, targetDate) {
+  const targetDateStr = `${targetDate.getFullYear()}-${targetDate.getMonth()}-${targetDate.getDate()}`;
+  
+  for (let i = 0; i < days.length; i++) {
+    const dayDate = new Date(days[i]);
+    const dayDateStr = `${dayDate.getFullYear()}-${dayDate.getMonth()}-${dayDate.getDate()}`;
+    if (dayDateStr === targetDateStr) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+/**
+ * Calculate block position using pixel-based positioning
+ * 
+ * Each day column is exactly DAY_COLUMN_WIDTH_PX pixels wide.
+ * Within each day, time is mapped from WORK_START_HOUR to WORK_END_HOUR.
+ * 
+ * This uses pixel values instead of percentages to ensure correct alignment
+ * with the day columns which use min-w-[120px].
  */
 function calculateBlockPosition(block, days, workHoursPerDay) {
   if (days.length === 0) return { left: 0, width: 0, display: 'none' };
@@ -155,13 +243,11 @@ function calculateBlockPosition(block, days, workHoursPerDay) {
     return { left: 0, width: 0, display: 'none' };
   }
 
-  // Each day takes up (100 / days.length)% of the width
-  const dayWidthPercent = 100 / days.length;
   const workHoursMs = workHoursPerDay * 60 * 60 * 1000;
-
-  // Find which days the block spans and calculate position
-  let leftPercent = null;
-  let rightPercent = 0;
+  
+  // Find which days the block spans and calculate pixel positions
+  let leftPx = null;
+  let rightPx = 0;
 
   for (let i = 0; i < days.length; i++) {
     const dayDate = new Date(days[i]);
@@ -187,28 +273,32 @@ function calculateBlockPosition(block, days, workHoursPerDay) {
     const dayStartOffset = Math.max(0, Math.min(1, (overlapStart - dayWorkStart) / workHoursMs));
     const dayEndOffset = Math.max(0, Math.min(1, (overlapEnd - dayWorkStart) / workHoursMs));
     
-    // Convert to percentage of total width
-    const blockLeftInDay = i * dayWidthPercent + dayStartOffset * dayWidthPercent;
-    const blockRightInDay = i * dayWidthPercent + dayEndOffset * dayWidthPercent;
+    // Convert to pixel position
+    // Each day column starts at (i * DAY_COLUMN_WIDTH_PX) pixels
+    const dayStartPx = i * DAY_COLUMN_WIDTH_PX;
+    const blockLeftInDay = dayStartPx + (dayStartOffset * DAY_COLUMN_WIDTH_PX);
+    const blockRightInDay = dayStartPx + (dayEndOffset * DAY_COLUMN_WIDTH_PX);
 
-    if (leftPercent === null) {
+    if (leftPx === null) {
       // First day of the block - set left position
-      leftPercent = blockLeftInDay;
+      leftPx = blockLeftInDay;
     }
     
     // Always update right position to extend to current day's end
-    rightPercent = blockRightInDay;
+    rightPx = blockRightInDay;
   }
 
   // If block wasn't found in any day, hide it
-  if (leftPercent === null) {
+  if (leftPx === null) {
     return { left: 0, width: 0, display: 'none' };
   }
 
-  const widthPercent = rightPercent - leftPercent;
+  const widthPx = rightPx - leftPx;
 
+  // Use pixel values for positioning
+  // No minimum width - let blocks be their actual size to avoid fake overlaps
   return {
-    left: `${Math.max(0, Math.min(100, leftPercent))}%`,
-    width: `${Math.max(0.5, Math.min(100 - leftPercent, widthPercent))}%`,
+    left: `${leftPx}px`,
+    width: `${Math.max(2, widthPx)}px`, // Minimum 2px so block is at least visible as a line
   };
 }
