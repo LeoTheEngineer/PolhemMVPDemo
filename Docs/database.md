@@ -364,6 +364,8 @@ Global application settings stored as a single row (monolith pattern). The `id` 
 | `setup_time_minutes` | `integer` | `NOT NULL` | `45` | Default setup/changeover time |
 | `work_hours_per_day` | `integer` | `NOT NULL` | `16` | Working hours per day |
 | `shifts_per_day` | `integer` | `NOT NULL` | `2` | Number of shifts per day |
+| `auto_regenerate` | `boolean` | `NOT NULL` | `false` | Auto-regenerate schedule on data changes |
+| `needs_regeneration` | `boolean` | `NOT NULL` | `false` | Flag indicating schedule needs regeneration |
 | `schedule_metrics` | `jsonb` | | `'{}'` | Calculated schedule metrics (OEE, revenue, etc.) |
 | `created_at` | `timestamptz` | `NOT NULL` | `now()` | Record creation timestamp |
 | `updated_at` | `timestamptz` | `NOT NULL` | `now()` | Last update timestamp |

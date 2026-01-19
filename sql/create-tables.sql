@@ -155,6 +155,8 @@ CREATE TABLE settings (
     setup_time_minutes INTEGER NOT NULL DEFAULT 45,
     work_hours_per_day INTEGER NOT NULL DEFAULT 16,
     shifts_per_day INTEGER NOT NULL DEFAULT 2,
+    auto_regenerate BOOLEAN NOT NULL DEFAULT false,
+    needs_regeneration BOOLEAN NOT NULL DEFAULT false,
     schedule_metrics JSONB DEFAULT '{}',
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),

@@ -22,12 +22,6 @@ const columns = [
     render: (val) => `${formatNumber(val)} bar`,
   },
   {
-    key: 'hourly_rate',
-    label: 'Rate/hr',
-    align: 'right',
-    render: (val) => `${formatNumber(val)} SEK`,
-  },
-  {
     key: 'status',
     label: 'Status',
     render: (val) => <StatusBadge status={val} />,
@@ -40,7 +34,6 @@ const editFields = [
   { key: 'clamp_force', label: 'Clamp Force (kN)', type: 'number' },
   { key: 'max_pressure', label: 'Max Pressure (bar)', type: 'number', step: '0.01' },
   { key: 'max_temperature', label: 'Max Temperature (C)', type: 'number', step: '0.01' },
-  { key: 'hourly_rate', label: 'Hourly Rate (SEK)', type: 'number', step: '0.01' },
   {
     key: 'status',
     label: 'Status',

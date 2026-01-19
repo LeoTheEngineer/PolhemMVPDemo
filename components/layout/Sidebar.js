@@ -8,24 +8,15 @@ import {
   ShoppingCart,
   Calendar,
   Settings,
-  Factory,
-  Package,
-  Users,
-  Boxes,
+  Database,
 } from 'lucide-react';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Orders', href: '/orders', icon: ShoppingCart },
   { name: 'Schedule', href: '/schedule', icon: Calendar },
+  { name: 'Data', href: '/data', icon: Database },
   { name: 'Settings', href: '/settings', icon: Settings },
-];
-
-const secondaryNav = [
-  { name: 'Products', href: '/settings?tab=products', icon: Package },
-  { name: 'Machines', href: '/settings?tab=machines', icon: Factory },
-  { name: 'Materials', href: '/settings?tab=materials', icon: Boxes },
-  { name: 'Customers', href: '/settings?tab=customers', icon: Users },
 ];
 
 export default function Sidebar() {
@@ -67,22 +58,6 @@ export default function Sidebar() {
               </Link>
             );
           })}
-
-          <div className="mb-4 mt-8">
-            <p className="px-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">
-              Data Management
-            </p>
-          </div>
-          {secondaryNav.map((item) => (
-            <Link
-              key={item.name}
-              href={item.href}
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-zinc-400 transition-colors hover:bg-zinc-800/50 hover:text-white"
-            >
-              <item.icon className="h-5 w-5" />
-              {item.name}
-            </Link>
-          ))}
         </nav>
 
         {/* Footer */}

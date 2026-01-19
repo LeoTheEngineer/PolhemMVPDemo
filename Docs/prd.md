@@ -1049,7 +1049,150 @@ All endpoints return JSON with consistent structure:
 | Audit Log | Track all changes to settings and schedules |
 | Export | Generate reports, export to Excel/PDF |
 
-### 12.2 Scalability Considerations
+### 12.2 AI-Powered Interactive Assistant `[PRODUCTION]`
+
+The production version will include an AI-powered assistant that wraps the entire system, providing intelligent interactions with the data and UI.
+
+#### 12.2.1 Overview
+
+A slide-out AI chatbot panel on the right side of the dashboard (similar to Notion AI), accessible via a button in the header. When opened, it pushes the main content to the left rather than overlapping.
+
+#### 12.2.2 Capabilities
+
+| Capability | Description | Example Queries |
+|------------|-------------|-----------------|
+| **Data Queries** | Natural language queries against the database | "What is the OEE for Machine 3 this week?", "Show me orders due next month" |
+| **Navigation Help** | Guide users to features and settings | "Where can I change the reliability threshold?", "How do I add a new product?" |
+| **Report Generation** | Generate PDF reports and summaries | "Generate a weekly production summary", "Create a customer order report for Volvo" |
+| **Data Insights** | Proactive insights from data analysis | "I noticed production is running 15% behind schedule", "Machine 5 has been idle for 3 days" |
+| **Action Suggestions** | Recommend actions based on current state | "Would you like me to regenerate the schedule?", "Should I mark these orders as completed?" |
+
+#### 12.2.3 Technical Implementation
+
+**Backend Requirements:**
+- Custom MCP (Model Context Protocol) server or query interface
+- RAG (Retrieval Augmented Generation) for documentation and help content
+- Database schema awareness for generating SQL queries
+- Action execution capabilities (with confirmation)
+
+**Frontend Implementation:**
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│ Header                                          [AI Button] [User]  │
+├──────────┬─────────────────────────────────────────┬────────────────┤
+│          │                                         │                │
+│ Sidebar  │         Main Content                    │   AI Panel     │
+│          │         (pushed left when open)         │   (slide-out)  │
+│          │                                         │                │
+│          │                                         │ [Chat history] │
+│          │                                         │                │
+│          │                                         │ [Input field]  │
+└──────────┴─────────────────────────────────────────┴────────────────┘
+```
+
+**UI Components:**
+- `components/ai/AIChatPanel.js` - Main slide-out panel
+- `components/ai/AIChatMessage.js` - Message bubble component
+- `components/ai/AIActionButton.js` - Executable action buttons in responses
+- `contexts/ai-context.js` - Chat state and history management
+
+#### 12.2.4 MCP Server Design
+
+```javascript
+// Conceptual MCP server endpoints
+{
+  tools: [
+    {
+      name: "query_database",
+      description: "Execute a read-only SQL query against the production database",
+      parameters: { query: "string" }
+    },
+    {
+      name: "get_oee",
+      description: "Get OEE metrics for a machine or globally",
+      parameters: { machine_id: "string?", date_range: "string?" }
+    },
+    {
+      name: "navigate_to",
+      description: "Navigate the user to a specific page or setting",
+      parameters: { path: "string", highlight: "string?" }
+    },
+    {
+      name: "generate_report",
+      description: "Generate a PDF report",
+      parameters: { type: "string", filters: "object?" }
+    },
+    {
+      name: "execute_action",
+      description: "Execute a confirmed action",
+      parameters: { action: "string", params: "object" }
+    }
+  ]
+}
+```
+
+### 12.3 Extended Dashboard Metrics `[PRODUCTION]`
+
+The production dashboard will display comprehensive business intelligence metrics:
+
+#### 12.3.1 Core Metrics
+
+| Metric | Description | Calculation |
+|--------|-------------|-------------|
+| **OEE Over Time** | Line chart showing OEE trends | Historical schedule_metrics aggregation |
+| **Production vs Plan** | Variance from planned production | Actual output / Planned output |
+| **Saved Costs** | Cost savings from optimization | (Baseline cost - Actual cost) calculation |
+| **Time Ahead/Behind** | Production schedule variance | Planned completion - Actual completion |
+
+#### 12.3.2 Capital & Storage Metrics
+
+| Metric | Description | Calculation |
+|--------|-------------|-------------|
+| **Capital Tied Up** | Value of inventory in storage | Sum(quantity × unit_cost) across all products |
+| **Storage Utilization** | Warehouse capacity usage | Used m³ / Total m³ |
+| **Inventory Turnover** | How fast inventory cycles | Cost of goods sold / Average inventory |
+| **Holding Costs** | Daily cost of current inventory | Storage + Interest costs |
+
+#### 12.3.3 Machine Utilization
+
+| Metric | Description | Visualization |
+|--------|-------------|---------------|
+| **Machines In Use** | Active machine count | X/Y with percentage |
+| **Machine OEE Comparison** | Per-machine OEE ranking | Horizontal bar chart |
+| **Downtime Analysis** | Reasons for machine idle time | Pie chart (setup, maintenance, no orders) |
+
+#### 12.3.4 Performance Indicators
+
+| Metric | Description | Display |
+|--------|-------------|---------|
+| **Performance Ratio** | Actual cycle time vs theoretical | Percentage (e.g., 1.05 = 5% faster) |
+| **Products In Production** | Active product count | Simple counter |
+| **Average Lead Time** | Order to delivery time | Days with trend arrow |
+| **On-Time Delivery Rate** | Orders delivered on/before due date | Percentage with target indicator |
+
+#### 12.3.5 Dashboard Layout (Production)
+
+```
+┌────────────────────────────────────────────────────────────────────┐
+│ Dashboard                                                           │
+├────────────┬────────────┬────────────┬────────────────────────────┤
+│ Orders     │ Products   │ Machines   │ OEE Over Time              │
+│ 24         │ 16         │ 8/10       │ ═══════╱╲───────────       │
+│ 5 pending  │ Active     │ Available  │ [Line Chart - 4 weeks]     │
+├────────────┴────────────┴────────────┼────────────────────────────┤
+│ Production Status                     │ Capital Metrics            │
+│ ▓▓▓▓▓▓▓▓░░░░ 67% On Track           │ Capital: 2.4M SEK          │
+│ +2.5h ahead of schedule               │ Storage: 45% utilized      │
+│                                       │ Holding: 1,250 SEK/day     │
+├───────────────────────────────────────┴────────────────────────────┤
+│ Machine Performance                                                 │
+│ M1 ████████████████░░░░ 85%   M6 ██████████░░░░░░░░░░ 52%         │
+│ M2 ███████████████░░░░░ 78%   M7 █████████░░░░░░░░░░░ 48%         │
+│ M3 ██████████████░░░░░░ 72%   M8 ████████░░░░░░░░░░░░ 42%         │
+└────────────────────────────────────────────────────────────────────┘
+```
+
+### 12.4 Scalability Considerations
 
 - Move calculation logic to background jobs for large datasets
 - Implement caching for complex queries

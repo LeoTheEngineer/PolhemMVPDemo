@@ -16,11 +16,35 @@ export default function ScheduleGantt({
   onBlockClick,
   onDayClick,
   onBlockMove,
+  onMachineClick,
 }) {
   const [activeBlock, setActiveBlock] = useState(null);
   const [dragOverMachine, setDragOverMachine] = useState(null);
 
   const days = getDateRange(startDate, endDate);
+  
+  // Parse ISO date string treating it as local time (ignore timezone)
+  const parseLocalTime = (isoString) => {
+    const match = isoString.match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+    if (!match) return new Date(isoString);
+    const [, year, month, day, hour, minute] = match;
+    return new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hour), parseInt(minute));
+  };
+  
+  // Filter blocks to only those that overlap with the visible date range
+  const visibleBlocks = blocks.filter(block => {
+    const blockStart = parseLocalTime(block.start_time);
+    const blockEnd = parseLocalTime(block.end_time);
+    
+    // Get range boundaries
+    const rangeStart = new Date(startDate);
+    rangeStart.setHours(0, 0, 0, 0);
+    const rangeEnd = new Date(endDate);
+    rangeEnd.setHours(23, 59, 59, 999);
+    
+    // Block is visible if it overlaps with the range
+    return blockStart <= rangeEnd && blockEnd >= rangeStart;
+  });
 
   const handleDragStart = (event) => {
     const block = event.active.data.current;
@@ -82,9 +106,9 @@ export default function ScheduleGantt({
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className="border border-zinc-800 rounded-lg overflow-hidden">
+      <div className="border border-zinc-800 rounded-lg overflow-x-auto">
         {/* Header with day labels */}
-        <div className="flex border-b border-zinc-800 bg-zinc-900">
+        <div className="flex border-b border-zinc-800 bg-zinc-900 min-w-fit">
           <div className="w-32 flex-shrink-0 px-4 py-2 border-r border-zinc-800">
             <span className="text-xs font-semibold text-zinc-400">MACHINE</span>
           </div>
@@ -92,14 +116,14 @@ export default function ScheduleGantt({
             {days.map((day) => (
               <div
                 key={day.toISOString()}
-                className="flex-1 px-2 py-2 text-center border-r border-zinc-800/50"
+                className="min-w-[120px] flex-1 px-2 py-2 text-center border-r border-zinc-800/50"
               >
                 <span className="text-xs text-zinc-400">
                   {day.toLocaleDateString('en-US', { weekday: 'short' })}
                 </span>
                 <br />
                 <span className="text-xs font-medium text-white">
-                  {day.getDate()}
+                  {day.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                 </span>
               </div>
             ))}
@@ -108,7 +132,7 @@ export default function ScheduleGantt({
 
         {/* Machine rows */}
         {machines.map((machine) => {
-          const machineBlocks = blocks.filter(
+          const machineBlocks = visibleBlocks.filter(
             (b) => b.machine_id === machine.id
           );
           return (
@@ -120,6 +144,7 @@ export default function ScheduleGantt({
               workHoursPerDay={workHoursPerDay}
               onBlockClick={onBlockClick}
               onDayClick={onDayClick}
+              onMachineClick={onMachineClick}
               isCompatibleTarget={isCompatibleTarget(machine.id)}
             />
           );

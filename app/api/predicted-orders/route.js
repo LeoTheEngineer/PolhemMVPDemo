@@ -86,6 +86,16 @@ export async function POST(request) {
 
     if (error) throw error;
 
+    // Set regeneration flag (don't fail the request if this fails)
+    try {
+      await supabase
+        .from('settings')
+        .update({ needs_regeneration: true })
+        .eq('id', 'main');
+    } catch (flagError) {
+      console.warn('Failed to set needs_regeneration flag:', flagError);
+    }
+
     return NextResponse.json({ data }, { status: 201, headers: rateLimitResult.headers });
   } catch (error) {
     console.error('POST /api/predicted-orders error:', error);
@@ -135,6 +145,16 @@ export async function PUT(request) {
 
     if (error) throw error;
 
+    // Set regeneration flag (don't fail the request if this fails)
+    try {
+      await supabase
+        .from('settings')
+        .update({ needs_regeneration: true })
+        .eq('id', 'main');
+    } catch (flagError) {
+      console.warn('Failed to set needs_regeneration flag:', flagError);
+    }
+
     return NextResponse.json({ data }, { headers: rateLimitResult.headers });
   } catch (error) {
     console.error('PUT /api/predicted-orders error:', error);
@@ -173,6 +193,16 @@ export async function DELETE(request) {
       .eq('id', id);
 
     if (error) throw error;
+
+    // Set regeneration flag (don't fail the request if this fails)
+    try {
+      await supabase
+        .from('settings')
+        .update({ needs_regeneration: true })
+        .eq('id', 'main');
+    } catch (flagError) {
+      console.warn('Failed to set needs_regeneration flag:', flagError);
+    }
 
     return NextResponse.json({ success: true }, { headers: rateLimitResult.headers });
   } catch (error) {

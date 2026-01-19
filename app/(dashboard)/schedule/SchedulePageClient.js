@@ -1,31 +1,93 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { RefreshCw, AlertTriangle } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import Button from '@/components/shared/Button';
 import ConfirmDialog from '@/components/shared/ConfirmDialog';
 import DateRangePicker from '@/components/schedule/DateRangePicker';
 import ScheduleGantt from '@/components/schedule/ScheduleGantt';
 import BlockEditModal from '@/components/schedule/BlockEditModal';
 import HourlyModal from '@/components/schedule/HourlyModal';
+import MachineDetailsModal from '@/components/schedule/MachineDetailsModal';
 import { formatDate, addDays } from '@/lib/utils';
+
+// Calculate initial dates based on blocks data, or use a fixed date range
+function getInitialDateRange(blocks) {
+  if (blocks && blocks.length > 0) {
+    // Find the earliest block start date
+    const dates = blocks.map(b => new Date(b.start_time));
+    const minDate = new Date(Math.min(...dates));
+    const startStr = formatDate(minDate);
+    const endStr = formatDate(addDays(minDate, 14));
+    return { start: startStr, end: endStr };
+  }
+  // Fallback: use a fixed date that won't cause hydration issues
+  // This will be updated on client mount
+  return { start: '', end: '' };
+}
 
 export default function SchedulePageClient({ machines, blocks, settings }) {
   const router = useRouter();
   
-  // Date range state
-  const [startDate, setStartDate] = useState(formatDate(new Date()));
-  const [endDate, setEndDate] = useState(formatDate(addDays(new Date(), 14)));
+  // Initialize with dates from blocks data to avoid hydration mismatch
+  const initialRange = getInitialDateRange(blocks);
+  const [startDate, setStartDate] = useState(initialRange.start);
+  const [endDate, setEndDate] = useState(initialRange.end);
+  const [mounted, setMounted] = useState(false);
+  
+  // Set actual dates after mount to avoid hydration issues
+  useEffect(() => {
+    if (!mounted) {
+      setMounted(true);
+      if (!startDate || !endDate) {
+        const now = new Date();
+        setStartDate(formatDate(now));
+        setEndDate(formatDate(addDays(now, 14)));
+      }
+    }
+  }, [mounted, startDate, endDate]);
   
   // Modal states
   const [editBlock, setEditBlock] = useState(null);
   const [hourlyView, setHourlyView] = useState({ date: null, machine: null });
+  const [machineDetails, setMachineDetails] = useState({ machine: null, oee: null });
   const [showConfirmGenerate, setShowConfirmGenerate] = useState(false);
   
   // Loading states
   const [generating, setGenerating] = useState(false);
+  
+  // Auto-regeneration timer ref
+  const regenerateTimerRef = useRef(null);
+  
+  // Auto-regeneration effect
+  useEffect(() => {
+    // Clear any existing timer on every render
+    if (regenerateTimerRef.current) {
+      clearTimeout(regenerateTimerRef.current);
+      regenerateTimerRef.current = null;
+    }
+
+    // Only set timer if auto-regenerate is on AND needs regeneration
+    if (settings?.auto_regenerate && settings?.needs_regeneration && !generating) {
+      regenerateTimerRef.current = setTimeout(() => {
+        // Double-check conditions before regenerating
+        if (settings?.auto_regenerate && settings?.needs_regeneration) {
+          handleGenerate();
+        }
+      }, 2 * 60 * 1000); // 2 minutes
+    }
+    
+    // Cleanup on unmount or dependency change
+    return () => {
+      if (regenerateTimerRef.current) {
+        clearTimeout(regenerateTimerRef.current);
+        regenerateTimerRef.current = null;
+      }
+    };
+  }, [settings?.auto_regenerate, settings?.needs_regeneration, generating]);
 
   // Get metrics from settings
   const metrics = settings?.schedule_metrics || {};
@@ -91,8 +153,15 @@ export default function SchedulePageClient({ machines, blocks, settings }) {
     setHourlyView({ machine, date: day });
   };
 
+  const handleMachineClick = (machine, oee) => {
+    setMachineDetails({ machine, oee });
+  };
+  
+  // Determine if regenerate button should be disabled
+  const isRegenerateDisabled = !settings?.needs_regeneration && blocks.length > 0;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" suppressHydrationWarning>
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -113,6 +182,10 @@ export default function SchedulePageClient({ machines, blocks, settings }) {
               hasManualEdits ? setShowConfirmGenerate(true) : handleGenerate()
             }
             loading={generating}
+            disabled={isRegenerateDisabled}
+            className={cn(
+              isRegenerateDisabled && 'opacity-50 cursor-not-allowed'
+            )}
           >
             <RefreshCw className="w-4 h-4" />
             {blocks.length === 0 ? 'Generate Schedule' : 'Regenerate'}
@@ -159,6 +232,10 @@ export default function SchedulePageClient({ machines, blocks, settings }) {
               Generate Schedule
             </Button>
           </div>
+        ) : !startDate || !endDate ? (
+          <div className="text-center py-12">
+            <p className="text-zinc-400">Loading schedule...</p>
+          </div>
         ) : (
           <ScheduleGantt
             machines={machines}
@@ -169,6 +246,7 @@ export default function SchedulePageClient({ machines, blocks, settings }) {
             onBlockClick={setEditBlock}
             onDayClick={handleDayClick}
             onBlockMove={handleBlockMove}
+            onMachineClick={handleMachineClick}
           />
         )}
       </div>
@@ -189,6 +267,14 @@ export default function SchedulePageClient({ machines, blocks, settings }) {
         date={hourlyView.date}
         machine={hourlyView.machine}
         blocks={blocks}
+      />
+
+      {/* Machine Details Modal */}
+      <MachineDetailsModal
+        isOpen={!!machineDetails.machine}
+        onClose={() => setMachineDetails({ machine: null, oee: null })}
+        machine={machineDetails.machine}
+        oee={machineDetails.oee}
       />
 
       {/* Confirm Regenerate Dialog */}

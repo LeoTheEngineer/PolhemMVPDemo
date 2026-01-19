@@ -70,7 +70,7 @@ export default async function DashboardPage() {
   const { stats, metrics, recentOrders } = await getDashboardData();
 
   return (
-    <div className="space-y-8 p-6">
+    <div className="space-y-4">
       {/* Page Header */}
       <div>
         <h1 className="text-2xl font-bold text-white">Dashboard</h1>
@@ -80,40 +80,36 @@ export default async function DashboardPage() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Total Orders"
           value={stats.totalOrders}
           subtitle={`${stats.pendingOrders} pending`}
           icon={ClipboardList}
-          iconColor="text-blue-400"
         />
         <StatCard
           title="Products"
           value={stats.totalProducts}
           subtitle="Active SKUs"
           icon={Package}
-          iconColor="text-green-400"
         />
         <StatCard
           title="Machines"
           value={`${stats.availableMachines}/${stats.totalMachines}`}
           subtitle="Available"
           icon={Factory}
-          iconColor="text-purple-400"
         />
         <StatCard
           title="Predictions"
           value={stats.totalPredictions}
           subtitle={`${stats.reliablePredictions} reliable`}
           icon={TrendingUp}
-          iconColor="text-yellow-400"
         />
       </div>
 
       {/* Schedule Metrics */}
       {metrics.total_oee !== undefined && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -152,7 +148,7 @@ export default async function DashboardPage() {
       )}
 
       {/* Quick Actions & Status */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Order Status Breakdown */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
           <h2 className="text-lg font-semibold text-white mb-4">
@@ -227,17 +223,17 @@ export default async function DashboardPage() {
 
 // Sub-components
 
-function StatCard({ title, value, subtitle, icon: Icon, iconColor }) {
+function StatCard({ title, value, subtitle, icon: Icon }) {
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
+    <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-sm text-zinc-400">{title}</p>
-          <p className="text-2xl font-bold text-white mt-1">{value}</p>
-          <p className="text-sm text-zinc-500 mt-1">{subtitle}</p>
+          <p className="text-xs text-zinc-500 uppercase tracking-wide">{title}</p>
+          <p className="text-xl font-bold text-white mt-1">{value}</p>
+          {subtitle && <p className="text-xs text-zinc-500 mt-1">{subtitle}</p>}
         </div>
-        <div className={`p-3 rounded-lg bg-zinc-800 ${iconColor}`}>
-          <Icon className="w-5 h-5" />
+        <div className="p-2 rounded bg-zinc-800">
+          <Icon className="w-4 h-4 text-zinc-400" />
         </div>
       </div>
     </div>
