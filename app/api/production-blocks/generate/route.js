@@ -69,6 +69,7 @@ export async function POST(request) {
     const { error: metricsError } = await supabase
       .from('settings')
       .update({
+        needs_regeneration: false,
         schedule_metrics: {
           ...metrics,
           has_manual_edits: false,

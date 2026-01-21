@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "npx kill-port 3005 && next dev -p 3005",
+    "dev": "npx kill-port 3005 && next dev -p 3005 --webpack",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"

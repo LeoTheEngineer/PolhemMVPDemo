@@ -17,29 +17,22 @@ function naturalSortMachines(machines) {
 async function getScheduleData() {
   const supabase = createServerClient();
 
-  const [machinesResult, blocksResult, settingsResult, ordersResult, predictedOrdersResult] = await Promise.all([
+  const [machinesResult, blocksResult, settingsResult, latestBlockResult] = await Promise.all([
     supabase.from('machines').select('*').eq('status', 'available'),
     supabase
       .from('production_blocks')
       .select('*, machine:machines(*), product:products(*), customer:customers(*)')
       .order('start_time'),
     supabase.from('settings').select('*').eq('id', 'main').single(),
-    supabase.from('orders').select('due_date').order('due_date', { ascending: false }).limit(1),
-    supabase.from('predicted_orders').select('predicted_date').order('predicted_date', { ascending: false }).limit(1),
+    // Fetch the latest production block end_time for timeline calculation
+    supabase.from('production_blocks').select('end_time').order('end_time', { ascending: false }).limit(1),
   ]);
 
-  // Calculate the latest due date from orders and predicted orders
-  const latestOrderDueDate = ordersResult.data?.[0]?.due_date || null;
-  const latestPredictedDate = predictedOrdersResult.data?.[0]?.predicted_date || null;
-  
-  let latestDueDate = null;
-  if (latestOrderDueDate && latestPredictedDate) {
-    latestDueDate = new Date(latestOrderDueDate) > new Date(latestPredictedDate) 
-      ? latestOrderDueDate 
-      : latestPredictedDate;
-  } else {
-    latestDueDate = latestOrderDueDate || latestPredictedDate;
-  }
+  // Calculate the latest end date from production blocks
+  const latestBlockEndTime = latestBlockResult.data?.[0]?.end_time || null;
+
+  // Use the latest production block end_time for timeline end calculation
+  let latestDueDate = latestBlockEndTime;
 
   // Sort machines by natural number order (M1, M2, M10, not M1, M10, M2)
   const sortedMachines = naturalSortMachines(machinesResult.data || []);

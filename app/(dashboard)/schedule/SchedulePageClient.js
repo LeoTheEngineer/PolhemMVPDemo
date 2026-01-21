@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { RefreshCw, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -15,7 +15,9 @@ import { formatDate, addDays } from '@/lib/utils';
 
 export default function SchedulePageClient({ machines, blocks, settings, latestDueDate }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [mounted, setMounted] = useState(false);
+  const autoRegenerateTriggered = useRef(false);
   
   // Auto-calculate date range:
   // - Start: Today
@@ -91,7 +93,23 @@ export default function SchedulePageClient({ machines, blocks, settings, latestD
   const metrics = settings?.schedule_metrics || {};
   const hasManualEdits = metrics.has_manual_edits || false;
 
-  const handleGenerate = async () => {
+  // Auto-regenerate when navigating with ?regenerate=true query param
+  useEffect(() => {
+    if (mounted && searchParams.get('regenerate') === 'true' && !autoRegenerateTriggered.current && !generating) {
+      autoRegenerateTriggered.current = true;
+
+      // Clear the query param immediately
+      router.replace('/schedule', { scroll: false });
+
+      // Trigger regeneration
+      // Using setTimeout to ensure the state updates properly
+      setTimeout(() => {
+        handleGenerateInternal();
+      }, 100);
+    }
+  }, [mounted, searchParams, generating]);
+
+  const handleGenerateInternal = async () => {
     setGenerating(true);
     setShowConfirmGenerate(false);
 
@@ -112,6 +130,9 @@ export default function SchedulePageClient({ machines, blocks, settings, latestD
       setGenerating(false);
     }
   };
+
+  // Public wrapper for handleGenerateInternal
+  const handleGenerate = handleGenerateInternal;
 
   const handleBlockMove = async (blockId, newMachineId) => {
     try {
